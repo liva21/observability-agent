@@ -13,3 +13,4 @@ build/
 *.log
 *.jsonl
 .DS_Store
+.github/
