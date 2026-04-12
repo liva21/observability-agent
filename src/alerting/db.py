@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://postgres:password@localhost:5432/observability"
+    "postgresql://postgres:password@localhost:5433/observability"
 )
 
 CREATE_TABLE_SQL = """

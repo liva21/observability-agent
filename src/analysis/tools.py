@@ -23,7 +23,7 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-DATABASE_URL  = os.getenv("DATABASE_URL",   "postgresql://postgres:password@localhost:5432/observability")
+DATABASE_URL  = os.getenv("DATABASE_URL",   "postgresql://postgres:password@localhost:5433/observability")
 PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://localhost:9090")
 
 # Hard-coded dependency graph (in production: load from service mesh / Consul)
