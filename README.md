@@ -446,3 +446,11 @@ observability-agent/
 | `ANOMALY_DEDUP_TTL` | `300` | Alert dedup süresi (saniye) |
 | `WS_PUSH_INTERVAL` | `5` | WebSocket push aralığı (saniye) |
 | `ANALYSIS_CONCURRENCY` | `3` | Eş zamanlı LLM analiz sayısı |
+
+
+<img width="2996" height="1620" alt="image" src="https://github.com/user-attachments/assets/e470eb7c-073e-424b-95c6-d8579ff917da" />
+<img width="1456" height="1516" alt="image" src="https://github.com/user-attachments/assets/8a82b0bf-e5be-485b-a7c2-d1260f3f4288" /> 
+
+
+
+
