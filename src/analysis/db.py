@@ -132,8 +132,8 @@ async def fetch_recent(
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
     params.append(limit)
     query = f"""
-        SELECT id, analyzed_at, service_name, severity,
-               root_cause, confidence, recommended_action,
+        SELECT id, analyzed_at, service_name, anomaly_id, anomaly_score,
+               severity, root_cause, confidence, recommended_action,
                affected_services, escalate_to, success
         FROM analysis_results
         {where}
