@@ -17,27 +17,31 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from .routers import logs, anomalies, alerts, analysis, metrics, websocket
+from .schemas import HealthResponse, RootResponse
 from src.ingestion.db import get_pool as get_ingestion_pool, close_pool as close_ingestion_pool
 from src.alerting.db import get_pool as get_alerting_pool
 from src.analysis.db import get_pool as get_analysis_pool
 
 logger = logging.getLogger(__name__)
 
+STATIC_DIR = Path(__file__).parent / "static"
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: warm all DB pools
     await get_ingestion_pool()
     await get_alerting_pool()
     await get_analysis_pool()
     logger.info("Dashboard DB pools ready")
     yield
-    # Shutdown
     await close_ingestion_pool()
     logger.info("Dashboard shut down")
 
@@ -56,25 +60,35 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount routers
-app.include_router(logs.router,      prefix="/api/logs",     tags=["logs"])
-app.include_router(anomalies.router, prefix="/api/anomalies",tags=["anomalies"])
-app.include_router(alerts.router,    prefix="/api/alerts",   tags=["alerts"])
-app.include_router(analysis.router,  prefix="/api/analysis", tags=["analysis"])
-app.include_router(metrics.router,   prefix="/api/metrics",  tags=["metrics"])
-app.include_router(websocket.router, prefix="/ws",           tags=["websocket"])
+# Serve React dashboard at /static/index.html
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+# Mount API routers
+app.include_router(logs.router,      prefix="/api/logs",      tags=["logs"])
+app.include_router(anomalies.router, prefix="/api/anomalies", tags=["anomalies"])
+app.include_router(alerts.router,    prefix="/api/alerts",    tags=["alerts"])
+app.include_router(analysis.router,  prefix="/api/analysis",  tags=["analysis"])
+app.include_router(metrics.router,   prefix="/api/metrics",   tags=["metrics"])
+app.include_router(websocket.router, prefix="/ws",            tags=["websocket"])
 
 
-@app.get("/health", tags=["system"])
+@app.get("/health", response_model=HealthResponse, tags=["system"])
 async def health():
     return {"status": "ok", "service": "observability-dashboard"}
 
 
-@app.get("/", tags=["system"])
+@app.get("/", response_model=RootResponse, tags=["system"])
 async def root():
     return {
-        "service": "Observability Agent Dashboard",
-        "version": "1.0.0",
-        "docs": "/docs",
+        "service":   "Observability Agent Dashboard",
+        "version":   "1.0.0",
+        "docs":      "/docs",
         "websocket": "/ws/live",
     }
+
+
+@app.get("/dashboard", include_in_schema=False)
+async def serve_dashboard():
+    """Redirect /dashboard → React SPA."""
+    return FileResponse(str(STATIC_DIR / "index.html"))
