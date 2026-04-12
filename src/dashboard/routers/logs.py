@@ -13,11 +13,12 @@ from typing import Optional
 from fastapi import APIRouter, Query, HTTPException
 
 from src.ingestion.db import fetch_logs, get_pool
+from src.dashboard.schemas import LogsResponse, LogStatsResponse, ServicesResponse
 
 router = APIRouter()
 
 
-@router.get("")
+@router.get("", response_model=LogsResponse)
 async def list_logs(
     service_name: Optional[str] = Query(None, description="Filter by service"),
     level: Optional[str] = Query(None, description="DEBUG|INFO|WARNING|ERROR|CRITICAL"),
@@ -37,7 +38,7 @@ async def list_logs(
     return {"logs": rows, "count": len(rows)}
 
 
-@router.get("/stats")
+@router.get("/stats", response_model=LogStatsResponse)
 async def log_stats():
     """
     Return log volume and level breakdown for the last 24h.
@@ -88,7 +89,7 @@ async def log_stats():
     }
 
 
-@router.get("/services")
+@router.get("/services", response_model=ServicesResponse)
 async def list_services():
     """Return distinct service names seen in last 7 days."""
     pool = await get_pool()

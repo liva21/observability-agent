@@ -11,11 +11,12 @@ from typing import Optional
 from fastapi import APIRouter, Query, HTTPException
 
 from src.analysis.db import fetch_recent, get_by_id, get_pool
+from src.dashboard.schemas import AnalysesResponse, ConfidenceResponse
 
 router = APIRouter()
 
 
-@router.get("")
+@router.get("", response_model=AnalysesResponse)
 async def list_analyses(
     service_name: Optional[str] = Query(None),
     severity: Optional[str] = Query(None),
@@ -33,7 +34,7 @@ async def list_analyses(
     return {"analyses": rows, "count": len(rows)}
 
 
-@router.get("/confidence")
+@router.get("/confidence", response_model=ConfidenceResponse)
 async def confidence_distribution():
     """
     Return confidence score distribution as histogram buckets.

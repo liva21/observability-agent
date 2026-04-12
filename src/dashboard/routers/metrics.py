@@ -17,11 +17,12 @@ from fastapi import APIRouter
 from src.ingestion.db import get_pool as get_ingestion_pool
 from src.analysis.db import get_pool as get_analysis_pool
 from src.alerting.db import get_pool as get_alerting_pool
+from src.dashboard.schemas import MetricsSummaryResponse, PipelineHealthResponse
 
 router = APIRouter()
 
 
-@router.get("/summary")
+@router.get("/summary", response_model=MetricsSummaryResponse)
 async def system_summary():
     """
     Aggregate health summary across all pipeline stages.
@@ -82,7 +83,7 @@ async def system_summary():
     }
 
 
-@router.get("/pipeline/health")
+@router.get("/pipeline/health", response_model=PipelineHealthResponse)
 async def pipeline_health():
     """
     Simple health check for each pipeline stage.

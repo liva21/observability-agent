@@ -12,11 +12,14 @@ from fastapi import APIRouter, Query, HTTPException
 
 from src.analysis.db import fetch_recent as fetch_analyses, get_pool as get_analysis_pool
 from src.ingestion.db import get_pool as get_ingestion_pool
+from src.dashboard.schemas import (
+    AnomaliesResponse, AnomalySummaryResponse, TrendResponse
+)
 
 router = APIRouter()
 
 
-@router.get("")
+@router.get("", response_model=AnomaliesResponse)
 async def list_anomalies(
     service_name: Optional[str] = Query(None),
     severity: Optional[str] = Query(None, description="low|medium|high|critical"),
@@ -34,7 +37,7 @@ async def list_anomalies(
     return {"anomalies": rows, "count": len(rows)}
 
 
-@router.get("/summary")
+@router.get("/summary", response_model=AnomalySummaryResponse)
 async def anomaly_summary():
     """
     High-level anomaly stats for the dashboard summary section.
@@ -83,7 +86,7 @@ async def anomaly_summary():
     }
 
 
-@router.get("/{service_name}/trend")
+@router.get("/{service_name}/trend", response_model=TrendResponse)
 async def service_trend(
     service_name: str,
     hours: int = Query(6, ge=1, le=72),

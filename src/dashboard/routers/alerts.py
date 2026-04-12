@@ -11,11 +11,12 @@ from typing import Optional
 from fastapi import APIRouter, Query, HTTPException
 
 from src.alerting.db import fetch_alerts, alert_stats, get_pool
+from src.dashboard.schemas import AlertsResponse, AlertStatsResponse
 
 router = APIRouter()
 
 
-@router.get("")
+@router.get("", response_model=AlertsResponse)
 async def list_alerts(
     service_name: Optional[str] = Query(None),
     severity: Optional[str] = Query(None),
@@ -37,7 +38,7 @@ async def list_alerts(
     return {"alerts": rows, "count": len(rows)}
 
 
-@router.get("/stats")
+@router.get("/stats", response_model=AlertStatsResponse)
 async def get_alert_stats():
     """
     Aggregate alert statistics for the dashboard summary cards.
