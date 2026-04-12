@@ -5,11 +5,11 @@ Microservice'lerden gelen logları gerçek zamanlı analiz eden, anomali tespit 
 ## Mimari
 
 ```
-Microservices / HTTP
+Microservices / HTTP / demo_simulator.py
        │
        ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  Modül 1 — Log Ingestion Layer   (port 8001)                │
+│  Modül 1 — Log Ingestion Layer         (port 8001)          │
 │  OTel Collector → Kafka (raw-logs) → PostgreSQL             │
 └────────────────────────┬────────────────────────────────────┘
                          │ on_batch callback
@@ -17,7 +17,7 @@ Microservices / HTTP
 ┌─────────────────────────────────────────────────────────────┐
 │  Modül 2 — Anomaly Detection Engine                         │
 │  FeatureExtractor → StatisticalDetector + IsolationForest   │
-│  → AnomalyQueue (Redis)                                     │
+│  Weighted ensemble (60/40) → AnomalyQueue (Redis)           │
 └────────────────────────┬────────────────────────────────────┘
                          │ BRPOP
                          ▼
@@ -34,8 +34,9 @@ Microservices / HTTP
                          │
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  Modül 5 — Observability Dashboard  (port 8080)             │
-│  FastAPI REST API + WebSocket real-time push + React UI     │
+│  Modül 5 — Observability Dashboard     (port 8080)          │
+│  FastAPI REST API + WebSocket (5s push) + React dark UI     │
+│  /static/index.html  ·  /docs (Swagger UI)                  │
 └─────────────────────────────────────────────────────────────┘
 
 Altyapı: Kafka · PostgreSQL · Redis · Prometheus · Docker Compose
@@ -64,25 +65,66 @@ export OPENAI_API_KEY=sk-...
 export SLACK_WEBHOOK_URL=https://hooks.slack.com/...
 export PAGERDUTY_ROUTING_KEY=r-key-...
 
-# 3. Ingestion servisini başlat
-docker-compose up ingestion
+# 3. Servisleri başlat
+docker-compose up ingestion                                      # Terminal 1
+uvicorn src.dashboard.main:app --host 0.0.0.0 --port 8080       # Terminal 2
 
-# 4. Dashboard'u başlat
-uvicorn src.dashboard.main:app --host 0.0.0.0 --port 8080
-
-# 5. Test log gönder
-curl -X POST http://localhost:8001/ingest/log \
-  -H "Content-Type: application/json" \
-  -d '{
-    "service_name": "payment-service",
-    "level": "ERROR",
-    "message": "DB connection timeout after 5000ms",
-    "attributes": {"db_host": "postgres-primary", "timeout_ms": 5000}
-  }'
-
-# 6. Dashboard'u aç
+# 4. Dashboard
 open http://localhost:8080/static/index.html
 # Swagger UI: http://localhost:8080/docs
+```
+
+## Canlı Demo
+
+Gerçek bir microservice ortamını simüle eden, anomali senaryoları üreten simülatör:
+
+```bash
+python demo_simulator.py
+```
+
+**Ne yapar:**
+- 6 servis için sürekli normal log akışı (300ms aralık, ~10 log/s)
+- Her ~45 saniyede bir anomali senaryosu tetikler
+- Senaryo sonrası otomatik recovery periyodu
+- Terminal'de renkli gerçek zamanlı istatistik
+
+**5 anomali senaryosu:**
+
+| Senaryo | Servis | Loglar |
+|---------|--------|--------|
+| DB Connection Pool Exhausted | payment-service | timeout, circuit breaker OPEN, recovery |
+| Memory Leak → OOM Kill | order-service | heap full, pod restart, recovery |
+| Cascade Failure | api-gateway | fraud-service 503, retry exhausted |
+| Redis Cache Stampede | auth-service | cache miss %94, DB fallback |
+| High Latency Spike | inventory-service | p99 8200ms, slow SQL |
+
+**Terminal çıktısı:**
+```
+════════════════════════════════════════════════
+  Observability Agent — Canlı Demo Simülatörü
+════════════════════════════════════════════════
+✓ Ingestion servisi bağlantısı OK
+
+[00:05] Sent: 45  Errors: 0  RPS: 9.0  Anomalies: 0
+
+────────────────────────────────────────────
+  ANOMALY: DB Connection Pool Exhausted
+  Service: payment-service  |  Duration: 20s
+────────────────────────────────────────────
+  [ERROR] payment-service: DB connection timeout after 5000ms
+  [CRITICAL] payment-service: Circuit breaker OPEN
+  ↺ Recovery starting...
+  [INFO] payment-service: DB connection restored
+  ✓ Scenario resolved
+```
+
+## Demo Verisi (Statik)
+
+Eğer simülatör yerine hazır veri yüklemek istersen:
+
+```bash
+python seed_data.py
+# → 500 log, 20 anomali analizi, 15 alert yükler
 ```
 
 ## Testleri Çalıştır
@@ -131,6 +173,9 @@ Toplam                    135 test
 | `/api/metrics/summary` | GET | Pipeline KPI kartları (9 metrik) |
 | `/api/metrics/pipeline/health` | GET | Aşama bazlı sağlık durumu |
 | `/ws/live` | WebSocket | Gerçek zamanlı anomali push (5s) |
+| `/static/index.html` | GET | React dashboard (dark mode) |
+| `/docs` | GET | Swagger UI (tam şema, response_model) |
+| `/dashboard` | GET | Dashboard kısayolu |
 
 ## Alert Yönlendirme
 
@@ -145,6 +190,9 @@ Toplam                    135 test
 
 ```
 observability-agent/
+├── demo_simulator.py            # Canlı demo — 5 anomali senaryosu
+├── seed_data.py                 # Statik demo verisi (500 log, 20 analiz, 15 alert)
+│
 ├── src/
 │   ├── ingestion/               # Modül 1
 │   │   ├── models.py            # LogEntry, LogLevel, AnomalyEvent
@@ -169,7 +217,7 @@ observability-agent/
 │   │   ├── tools.py             # fetch_logs, get_metrics, get_dependency_map
 │   │   ├── prompts.py           # SRE system prompt + 7-bölüm user prompt
 │   │   ├── agent.py             # LangGraph 3-node StateGraph
-│   │   ├── db.py                # analysis_results tablosu
+│   │   ├── db.py                # analysis_results tablosu (anomaly_score dahil)
 │   │   └── worker.py            # Redis pop → agent → DB, concurrency=3
 │   │
 │   ├── alerting/                # Modül 4
@@ -181,7 +229,8 @@ observability-agent/
 │   │   └── db.py                # alerts tablosu, upsert
 │   │
 │   └── dashboard/               # Modül 5
-│       ├── main.py              # FastAPI app, lifespan, CORS
+│       ├── main.py              # FastAPI app, StaticFiles, lifespan, CORS
+│       ├── schemas.py           # Pydantic response models (Swagger şemaları)
 │       ├── static/index.html    # React dashboard (dark mode, WebSocket)
 │       └── routers/
 │           ├── logs.py          # /api/logs/*
@@ -200,7 +249,7 @@ observability-agent/
 │
 ├── docker-compose.yml           # Kafka, Zookeeper, Postgres, Redis, Prometheus
 ├── Dockerfile
-├── requirements.txt
+├── requirements.txt             # Tüm bağımlılıklar (aiofiles, redis, scikit-learn dahil)
 └── .github/workflows/ci.yml     # pytest + ruff linting
 ```
 
@@ -217,6 +266,7 @@ observability-agent/
 | LLM | OpenAI GPT-4o (`response_format=json_object`) |
 | Agent framework | LangGraph (StateGraph) |
 | HTTP client | httpx (async) |
+| Static dosyalar | aiofiles (FastAPI StaticFiles) |
 | Metrik toplama | Prometheus |
 | Konteyner | Docker + Docker Compose |
 | Test | pytest + pytest-asyncio |
