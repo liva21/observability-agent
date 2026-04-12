@@ -17,7 +17,7 @@ import uuid
 import random
 from datetime import datetime, timezone, timedelta
 
-DATABASE_URL = "postgresql://postgres:password@localhost:5432/observability"
+DATABASE_URL = "postgresql://postgres:password@localhost:5433/observability"
 
 SERVICES = ["payment-service", "order-service", "auth-service", "api-gateway"]
 
