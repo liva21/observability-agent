@@ -6,10 +6,17 @@ from .models import (
     NotificationChannel,
     DeliveryResult,
 )
-from .router import AlertRouter
-from .slack_notifier import SlackNotifier
-from .pagerduty_client import PagerDutyClient
-from .engine import AlertEngine
+
+try:
+    from .router import AlertRouter
+    from .slack_notifier import SlackNotifier
+    from .pagerduty_client import PagerDutyClient
+    from .engine import AlertEngine
+except ImportError:
+    AlertRouter = None
+    SlackNotifier = None
+    PagerDutyClient = None
+    AlertEngine = None
 
 __all__ = [
     "Alert",

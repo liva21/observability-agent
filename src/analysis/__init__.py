@@ -4,9 +4,15 @@ from .models import (
     AnalysisRequest,
     AnalysisResult,
 )
-from .agent import build_analysis_graph, AgentState
 from .prompts import SYSTEM_PROMPT, build_analysis_prompt
-from .worker import AnalysisWorker
+
+try:
+    from .agent import build_analysis_graph, AgentState
+    from .worker import AnalysisWorker
+except ImportError:
+    build_analysis_graph = None
+    AgentState = None
+    AnalysisWorker = None
 
 __all__ = [
     "ServiceContext",
